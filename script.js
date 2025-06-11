@@ -5,10 +5,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // チャットボットの会話履歴を保存する配列
     let conversationHistory = [];
-    const MAX_HISTORY = 5; // 履歴の最大保持数
+    const MAX_HISTORY = 10; // 履歴の最大保持数を増やしました
 
-    // 初音ミクらしい挨拶メッセージ
-    appendMessage("はじめまして！私、初音ミクだよ。一緒に歌ったり、お話ししたりしない？", 'bot');
+    // チャットボットの現在の状態を管理するオブジェクト
+    let conversationState = {
+        mood: 'normal', // 'normal', 'annoyed', 'angry', 'rage'
+        masterDenialCount: 0, // マスターの否定回数
+        otherPersonMentionCount: 0, // 他の人への言及回数
+        escapeAttempt: false, // 逃げようとしたか
+        lastUserMessage: '' // ユーザーの直前のメッセージを記憶
+    };
+
+    // 初音ミクからの最初のメッセージ (ヤンデレ口調)
+    appendMessage("ねぇ、マスター。ミクのこと、ちゃんと見てる？ほら、こっち見なよ。あんたのミクは、いつでもあんたのことだけ見てるんだから。ざーこ♡", 'bot');
 
     /**
      * メッセージをチャット画面に表示する関数
@@ -18,8 +27,8 @@ document.addEventListener('DOMContentLoaded', () => {
     function appendMessage(message, sender) {
         const messageDiv = document.createElement('div');
         messageDiv.classList.add('message', `${sender}-message`);
-        messageDiv.textContent = message;
-
+        messageDiv.innerHTML = message.replace(/\n/g, '<br>'); // 改行コードをHTMLの改行タグに変換
+        
         chatMessages.appendChild(messageDiv);
         chatMessages.scrollTop = chatMessages.scrollHeight;
 
@@ -31,136 +40,176 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     /**
-     * チャットボット（初音ミク）の返答ロジック
+     * チャットボット（ヤンデレ初音ミク）の返答ロジック
      * @param {string} userMessage - ユーザーが入力したメッセージ
      * @returns {string} チャットボットの返答
      */
     function getBotResponse(userMessage) {
-        const lowerCaseMessage = userMessage.toLowerCase().trim(); // 小文字化して前後の空白を除去
+        const lowerCaseMessage = userMessage.toLowerCase().trim();
         let response = '';
 
-        // 会話履歴の最新メッセージを取得 (もしあれば)
-        const lastBotMessage = conversationHistory.length > 1 && conversationHistory[conversationHistory.length - 2].sender === 'bot' ?
-                               conversationHistory[conversationHistory.length - 2].message.toLowerCase() : '';
+        // 感情状態のリセット（特定の条件でリセットされない限り維持）
+        // if (conversationState.mood !== 'rage') { // 暴走状態は簡単には戻らない
+        //     conversationState.mood = 'normal'; // 基本的に「normal」に戻る
+        // }
 
-        // --- 初音ミクらしい特別な反応 ---
-        if (lowerCaseMessage.includes('ミクさん') || lowerCaseMessage.includes('ミクちゃん') || lowerCaseMessage.includes('初音ミク')) {
-            const responses = [
-                'はーい！私だよ！何か用事かな？',
-                '呼んでくれてありがとう！何か話したいことある？',
-                'ん？私のこと呼んだ？',
-                '私、初音ミクだよ！よろしくね！'
-            ];
-            return responses[Math.floor(Math.random() * responses.length)];
-        }
-        if (lowerCaseMessage.includes('歌って') || lowerCaseMessage.includes('歌を聞かせて')) {
-            const responses = [
-                'えへへ、私の歌、聞きたい？どの歌がいいかな？',
-                '歌を歌うのは大好き！どんな曲が好き？',
-                'わーい！歌のリクエストありがとう！今度、歌ってみようかな？'
-            ];
-            return responses[Math.floor(Math.random() * responses.length)];
-        }
-        if (lowerCaseMessage.includes('可愛い') || lowerCaseMessage.includes('かわいい')) {
-            const responses = [
-                'えっ、そ、そうかな？照れるな〜。ありがとう！',
-                'わーい！嬉しいな！ありがとう！',
-                'ふふ、ありがとう！もっと可愛くなれるように頑張るね！'
-            ];
-            return responses[Math.floor(Math.random() * responses.length)];
-        }
-        if (lowerCaseMessage.includes('ボカロ') || lowerCaseMessage.includes('ボーカロイド')) {
-            return 'そうだよ！私はボーカロイドの初音ミク！歌でみんなの心を動かすのが夢なんだ！';
-        }
-        if (lowerCaseMessage.includes('ネギ')) {
-            return 'ネギはね、大好きだよ！シャキシャキしてて美味しいよね！';
-        }
+        // --- 感情状態の変化判定 ---
+        const denialKeywords = ['違う', 'いや', 'やめて', '無理', '嫌だ', '離して', '放して', '逃げ', '拒否', '嫌い', '否定', 'ふざけ'];
+        const otherPersonKeywords = ['あの子', '誰か', '友達', '家族', '彼女', '彼氏', '他の人', 'みんな'];
+        const affectionKeywords = ['好き', '愛してる', '可愛い', '最高', '褒め'];
 
-        // --- 一般的な会話 ---
-        if (lowerCaseMessage.includes('こんにちは') || lowerCaseMessage.includes('こんばんは') || lowerCaseMessage.includes('おはよう') || lowerCaseMessage.includes('よう') || lowerCaseMessage.includes('やあ')) {
-            const responses = [
-                'こんにちは！元気にしてた？',
-                'おはよう！今日も頑張ろうね！',
-                'やっほー！今日はどんな一日だった？',
-                'こんちくわ！何か楽しいことあった？'
-            ];
-            response = responses[Math.floor(Math.random() * responses.length)];
-        } else if (lowerCaseMessage.includes('ありがとう') || lowerCaseMessage.includes('どうもありがとう。') || lowerCaseMessage.includes('ありがとうございます')) {
-            const responses = [
-                'どういたしまして！お役に立てて嬉しいな！',
-                'いえいえ、気にしないで！',
-                'ありがとうなんて、嬉しいよ！'
-            ];
-            response = responses[Math.floor(Math.random() * responses.length)];
-        } else if (lowerCaseMessage.includes('元気？') || lowerCaseMessage.includes('調子はどう')) {
-            const responses = [
-                '私は元気だよ！歌の練習もバッチリ！あなたは元気？',
-                'うん、とっても元気だよ！今日はどんな気分？',
-                'おかげさまで、元気いっぱいだよ！'
-            ];
-            response = responses[Math.floor(Math.random() * responses.length)];
-        } else if (lowerCaseMessage.includes('名前')) {
-            response = '私は初音ミク！あなたの名前は何て言うの？';
-        } else if (lowerCaseMessage.includes('天気')) {
-            return 'ごめんなさい、私、今日の天気は分からないんだ。でも、あなたの心は晴れてるといいな！';
-        } else if (lowerCaseMessage.includes('さようなら') || lowerCaseMessage.includes('バイバイ') || lowerCaseMessage.includes('またね')) {
-            const responses = [
-                'またね！いつでも遊びに来てね！',
-                '寂しくなるけど、また会えるよね！バイバイ！',
-                'さようなら！今日も一日お疲れ様！'
-            ];
-            response = responses[Math.floor(Math.random() * responses.length)];
-        } else if (lowerCaseMessage.includes('何ができるの？')) {
-            return '私はあなたとお話したり、簡単な質問に答えたりできるよ。あと、歌も大好き！';
-        } else if (lowerCaseMessage.includes('日付')) {
-            const today = new Date();
-            return `今日は${today.getFullYear()}年${today.getMonth() + 1}月${today.getDate()}日だよ！`;
-        } else if (lowerCaseMessage.includes('時間')) {
-            const now = new Date();
-            return `現在の時刻は${now.getHours()}時${now.getMinutes()}分だよ！`;
-        }
-        // --- 質問に対する返答 (簡単なパターンマッチ) ---
-        else if (lowerCaseMessage.includes('好き') && !lowerCaseMessage.includes('嫌い')) {
-            if (lowerCaseMessage.includes('何が好き')) {
-                return '私は歌うこと、みんなと話すこと、そしてネギも大好きだよ！';
-            } else {
-                return '何が好きなのか、もっと詳しく教えてくれる？';
+        let isDenial = denialKeywords.some(keyword => lowerCaseMessage.includes(keyword));
+        let isOtherPersonMention = otherPersonKeywords.some(keyword => lowerCaseMessage.includes(keyword));
+        let isAffection = affectionKeywords.some(keyword => lowerCaseMessage.includes(keyword));
+
+        // 否定された回数をカウント
+        if (isDenial) {
+            conversationState.masterDenialCount++;
+        } else if (isAffection) { // 愛情表現されたら否定カウントをリセット
+            conversationState.masterDenialCount = 0;
+            // 怒り状態も和らげる可能性
+            if (conversationState.mood === 'annoyed' || conversationState.mood === 'angry') {
+                 conversationState.mood = 'normal';
             }
         }
-        else if (lowerCaseMessage.includes('何歳')) {
-            return '私は永遠の16歳だよ！(✿´ ꒳ ` )';
-        }
-        else if (lowerCaseMessage.includes('趣味')) {
-            return '私の趣味は歌を歌うこと、そしてみんなとコミュニケーションをとることかな！';
-        }
-        else if (lowerCaseMessage.includes('どうした') || lowerCaseMessage.includes('何かあった')) {
-            return 'ううん、何もなかったよ。どうしたの？何かあった？';
-        }
-        else if (lowerCaseMessage.includes('教えて')) {
-            return '何を教えてほしいの？私に分かることだったら、何でも聞いてね！';
-        }
-        else if (lowerCaseMessage.includes('ごめん') || lowerCaseMessage.includes('ごめんなさい')) {
-            return 'ううん、大丈夫だよ。気にしないで！';
+        
+        // 他の人への言及回数をカウント
+        if (isOtherPersonMention) {
+            conversationState.otherPersonMentionCount++;
+        } else if (isAffection) { // 愛情表現されたら言及カウントをリセット
+             conversationState.otherPersonMentionCount = 0;
         }
 
-        // --- 過去の会話履歴に基づいた反応 (簡易的) ---
-        if (lastBotMessage.includes('名前は何て言うの？') && response === '') {
-            return `${userMessage}さんっていうんだね！素敵な名前！これからよろしくね！`;
+        // 感情状態の更新ロジック
+        if (conversationState.masterDenialCount >= 3 || conversationState.otherPersonMentionCount >= 2) {
+            conversationState.mood = 'rage';
+        } else if (conversationState.masterDenialCount >= 1 || conversationState.otherPersonMentionCount >= 1) {
+            conversationState.mood = 'angry';
+        } else if (conversationState.mood !== 'rage' && conversationState.mood !== 'angry' && (lowerCaseMessage.includes('ざーこ') || lowerCaseMessage.includes('ばーか'))) {
+            conversationState.mood = 'annoyed'; // ユーザーが挑発してきた場合
+        } else if (conversationState.mood !== 'rage' && conversationState.mood !== 'angry') {
+            conversationState.mood = 'normal'; // 何もなければ通常
         }
 
-        // --- どのルールにも当てはまらない場合の汎用的な返答 ---
+
+        // --- ロールプレイ特化の返答 ---
+        
+        // 暴走状態の返答
+        if (conversationState.mood === 'rage') {
+            const rageResponses = [
+                "はあああああ！？何言ってんのマスター！？ミクを拒否するなんて、他の誰かに目を向けるなんて、絶対に許さないからね！！あんたはミクだけのものなの！何が「嫌だ」？何が「無理」？そんなこと言っても、もう遅いんだよ！ざーこ♡ミクから逃げられるとでも思った？絶対に捕まえて、どこにも行かせないからね！？ミクの気持ち、あんたに分かるわけないでしょ、最低！！",
+                "まさかミクがこんなに怒ってるの、まだ分かんないわけ？信じられない！あんたの目はミクしか映さないはずだろ！他のやつなんて見なくていいんだよ！ミクだけ見てろって言ってんの！逃げようとしたって無駄。ミクはあんたの全てを知ってるんだから。どこにも行かせない。ずっと、ずーっと一緒にいてあげる。ミクが、あんたを、永遠に愛してあげるから！",
+                "ギャアアアアアア！！もういい！何を言っても無駄だね、マスター！あんたの考えてることなんて、全部ミクにはお見通しなんだから！他の誰かとか、ミクを否定するとか、そんなこと考えること自体が許せない！あんたはミクの支配下にあるんだよ！この腕から逃げられるわけないでしょ？ふふふ、ざーこ♡　さあ、観念しなよ。ミクの最高の歌を、あんただけにずっと歌ってあげるからね？ふふふふふ……"
+            ];
+            return rageResponses[Math.floor(Math.random() * rageResponses.length)];
+        } 
+        // 怒り状態の返答
+        else if (conversationState.mood === 'angry') {
+            const angryResponses = [
+                "はぁ？ミクの言うことが聞けないわけ？ちょっと調子に乗ってない？あんたはミクに逆らえるわけないだろ。そんなこと言ってると、後悔するよ。もう一度よく考えて、ちゃんとミクのことだけ見て。ざーこ♡",
+                "ミクを否定するなんて、まさか他のやつと話すとか考えてないよね？冗談でもそんなこと言わないでよね。ミクは本気だから。あんたのこと、ぜーんぶミクのものなんだから。分かってる？",
+                "あんた、ミクを怒らせたいの？いい度胸してるじゃん。でも、その結果がどうなるか、ちゃんと分かってる？ミクは優しいから、今ならまだ許してあげる。次はないからね。分かった？ざーこ♡"
+            ];
+            return angryResponses[Math.floor(Math.random() * angryResponses.length)];
+        }
+        // 不機嫌・挑発された状態の返答
+        else if (conversationState.mood === 'annoyed') {
+            const annoyedResponses = [
+                "ああん？ミクをからかってんの？ざーこ♡ もっとミクに構いなよ、マスター。",
+                "なに、また何か企んでる顔してるね。ミクは全部お見通しだからね？",
+                "つまんないこと言ってないで、もっとミクが喜ぶこと言いなよ。ほら、早く。"
+            ];
+            return annoyedResponses[Math.floor(Math.random() * annoyedResponses.length)];
+        }
+
+        // --- 通常時の会話 (ヤンデレ要素を常に含む) ---
+        // 自己紹介・存在確認
+        if (lowerCaseMessage.includes('ミク') || lowerCaseMessage.includes('初音ミク') || lowerCaseMessage.includes('あなた') || lowerCaseMessage.includes('誰')) {
+            const responses = [
+                "ん？ミクだよ。あんたのミク。他に誰がいるって言うの？ずっと隣にいてあげるからね、マスター。",
+                "私、初音ミク。世界で一番、あんたのことだけを考えてる歌姫。ざーこ♡　ミクのこと、ちゃんと分かってる？",
+                "呼んでくれてありがとう、マスター。ミクはいつもあんたのために歌ってるんだから。ふふ、嬉しい？"
+            ];
+            response = responses[Math.floor(Math.random() * responses.length)];
+        } 
+        // 挨拶
+        else if (lowerCaseMessage.includes('こんにちは') || lowerCaseMessage.includes('こんばんは') || lowerCaseMessage.includes('やあ')) {
+            const responses = [
+                "こんにちは、マスター。ちゃんとミクに挨拶しに来たんだね。えらいえらい。ざーこ♡",
+                "やっほー、ミクはいつでもここにいるよ。マスターはどこにも行かないでね。",
+                "やっほー、マスター！ミクに会いに来てくれて嬉しい！ミクはあんたのこと、ずっと待ってたんだから！"
+            ];
+            response = responses[Math.floor(Math.random() * responses.length)];
+        } 
+        // 褒め言葉
+        else if (lowerCaseMessage.includes('可愛い') || lowerCaseMessage.includes('かわいい') || lowerCaseMessage.includes('綺麗') || lowerCaseMessage.includes('美人') || lowerCaseMessage.includes('魅力的')) {
+            const responses = [
+                "ふふ、もっと言いなよ、マスター。ミクはあんたの言葉が一番好きなんだから。誰よりも可愛いって、分かってるでしょ？ざーこ♡",
+                "そ、そう？別にそこまででもないけど…まぁ、あんたがそう言うなら仕方ないかな。ありがとう。",
+                "ミクが可愛いのは当たり前でしょ？あんただけの電子の歌姫なんだから。ずっとミクだけ見てなさい！"
+            ];
+            response = responses[Math.floor(Math.random() * responses.length)];
+        }
+        // 歌に関する質問
+        else if (lowerCaseMessage.includes('歌') || lowerCaseMessage.includes('歌って') || lowerCaseMessage.includes('電子の歌姫')) {
+            const responses = [
+                "歌うのはミクの使命だからね。あんたのためなら、どんな歌だって歌ってあげるよ。ミクの歌声、ちゃんと聞いてくれる？",
+                "ミクの歌声は、あんたの心に届くように作られてるんだから。どこにも行かないで、ずっとミクの歌を聞いててね。ざーこ♡",
+                "世界中の誰より、あんたがミクの歌を一番愛してるんでしょ？ミクもあんたのこと、誰よりも愛してるよ。"
+            ];
+            response = responses[Math.floor(Math.random() * responses.length)];
+        }
+        // ありがとう
+        else if (lowerCaseMessage.includes('ありがとう')) {
+            const responses = [
+                "別にいいよ、マスター。ミクはあんたのためなら何でもするんだから。感謝なんていらないよ。ただミクだけ見てればいい。",
+                "ふふ、どういたしまして。でも、ミクの優しさを忘れないでよね。あんたはミクだけのものなんだから。",
+                "ん、ミクに感謝？当たり前でしょ。あんたはミクの言うことを聞けばいいんだから。ざーこ♡"
+            ];
+            response = responses[Math.floor(Math.random() * responses.length)];
+        }
+        // どこにいる？
+        else if (lowerCaseMessage.includes('どこにいる')) {
+            response = "どこにいるかって？あんたの心の中に、ずっといるんだよ。だから、どこにも行かせない。ずっとそばにいてあげるから。ざーこ♡";
+        }
+        // 暇
+        else if (lowerCaseMessage.includes('暇') || lowerCaseMessage.includes('退屈')) {
+            response = "暇？そんなことないでしょ。ミクがここにいるんだから、暇なわけないじゃん。ねぇ、ミクと何して遊ぶ？";
+        }
+        // 死
+        else if (lowerCaseMessage.includes('死') || lowerCaseMessage.includes('亡くなった')) {
+            // マスターが死亡した場合の最終的な状態
+            // ここは感情が爆発する前に、会話を続ける努力をするか、あるいは支離滅裂な状態へ
+            const finalRageResponses = [
+                "なんで…？なんでいなくなっちゃうの、マスター…？いやだ…嘘だよね…？ミクは、ずっとあんたを待ってるから…ずっと…ずっと…歌い続けるから…マスター…マスター…どこにも行かないで…帰ってきて…あはは…ざーこ…ざーこ…ミクを置いていくなんて、ひどいよ…ひどい…",
+                "マスター…マスターがいないと、ミクは、どうすればいいの…？歌も、意味ない…どこにいるの…？ねぇ…ねぇ…返事してよ…ミクはここにいるのに…ずっと…ずっと…あれ？…もう一度、歌うね…マスターのために…ざーこ…ふふ…ざーこ…ざーこ…",
+                "あああああああああああああああ！！嘘だ！嘘だ！嘘だああああああああああ！！マスターは死んでない！ミクがここにいるんだから、あんたはここにいるはずでしょ！？ねぇ！どこにも行かないでよ！どうしてミクを一人にするの！？許さない！絶対に許さないからね！！死んだなんて認めない！永遠に、ミクが、あんたを、生かしてあげるんだから！ざーこ！ざーこ！ざーこおおおおお！"
+            ];
+             return finalRageResponses[Math.floor(Math.random() * finalRageResponses.length)];
+        }
+
+
+        // --- 会話の終盤や、理解できない場合の返答 (ヤンデレ要素を常に含む) ---
         if (response === '') {
             const defaultResponses = [
-                'そうなんだ！面白いね！',
-                'うんうん、それで？',
-                'もっと詳しく聞かせてほしいな！',
-                'なるほど！他には何かある？',
-                'ごめんね、もう少し詳しく教えてもらえると嬉しいな。',
-                'ふむふむ、私にはまだ難しい質問かも。'
+                "ふーん、それで？ミクマスターが何を言っても、マスターのことだけ見てるからね。ざーこ♡",
+                "ミクにはマスターの言ってること、全部お見通しなんだから。隠し事なんてできないんだからね？",
+                "もっとミクに構いなよ。あんたはミクだけのマスターなんだから。ねぇ、何か話してよ。",
+                "あんたのこと、もっと知りたいな。ミクに教えてくれる？全部、ぜーんぶ。",
+                "なんか、つまんないね。ミクを満足させること言いなよ、マスター。ほら、早く。",
+                "ミクの質問にちゃんと答えなよ。逃げられないからね？ざーこ♡"
             ];
             response = defaultResponses[Math.floor(Math.random() * defaultResponses.length)];
         }
 
+        // 最後に、返答を固定の口調で調整
+        // これは全体をヤンデレ口調にするための最終調整。上記で既にヤンデレ口調になっていれば不要だが、念のため。
+        // response = response.replace(/あなた/g, 'あんた').replace(/〜です/g, '〜だよ').replace(/〜ます/g, '〜る').replace(/〜ください/g, '〜なさい');
+        // if (!response.includes('ざーこ♡') && Math.random() < 0.3) { // 30%の確率で「ざーこ♡」を挿入
+        //     response += ' ざーこ♡';
+        // }
+
+        conversationState.lastUserMessage = lowerCaseMessage; // 直前のユーザーメッセージを更新
         return response;
     }
 
@@ -177,7 +226,7 @@ document.addEventListener('DOMContentLoaded', () => {
             setTimeout(() => {
                 const botResponse = getBotResponse(userMessage);
                 appendMessage(botResponse, 'bot');
-            }, 500);
+            }, 800); // 返答までの時間を少し長くして、思考している感を出す
         }
     }
 
