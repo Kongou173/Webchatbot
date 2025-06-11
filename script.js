@@ -6,8 +6,6 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
         console.error('TensorFlow.js failed to load!');
     }
-
-document.addEventListener('DOMContentLoaded', () => {
     const chatMessages = document.getElementById('chat-messages');
     const userInput = document.getElementById('user-input');
     const sendButton = document.getElementById('send-button');
