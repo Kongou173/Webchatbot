@@ -1,4 +1,13 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // TensorFlow.jsがロードされているか確認 (AIの基礎の準備)
+    if (typeof tf !== 'undefined') {
+        console.log('TensorFlow.js is loaded!');
+        // ここにAIモデルのロードや前処理の関数を今後追加していきます
+    } else {
+        console.error('TensorFlow.js failed to load!');
+    }
+
+document.addEventListener('DOMContentLoaded', () => {
     const chatMessages = document.getElementById('chat-messages');
     const userInput = document.getElementById('user-input');
     const sendButton = document.getElementById('send-button');
